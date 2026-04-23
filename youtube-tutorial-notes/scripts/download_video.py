@@ -31,17 +31,17 @@ def download_video(video_url: str, output_dir: str = "./temp_videos") -> str:
         print(f"⚠️ 警告: cookies.txt 文件不存在")
         print(f"   期望路径: {cookies_file}")
 
-    # 下载命令（只下载音频，转录够用且更快）
+    # 下载命令（只下载音频）
     cmd = [
         "yt-dlp",
-        "--js-runtimes", "node:/usr/local/bin/node",  # 添加JS运行时
-        "--remote-components", "ejs:github",  # 启用远程JS挑战解决
-        "--cookies", str(cookies_file),  # 使用 cookies.txt
-        "--format", "bestaudio/best",  # 只下载音频
-        "--extract-audio",  # 提取音频
-        "--audio-format", "m4a",  # 音频格式
-        "--audio-quality", "0",  # 最佳质量
-        "--no-playlist",  # 不下载播放列表
+        "--js-runtimes", "node:/usr/local/bin/node",
+        "--remote-components", "eis:github",
+        "--cookies", str(cookies_file),
+        "--format", "bestaudio/best",
+        "--extract-audio",
+        "--audio-format", "m4a",
+        "--audio-quality", "0",
+        "--no-playlist",
         "-o", f"{output_dir}/%(title)s.%(ext)s",
         video_url
     ]
@@ -58,7 +58,12 @@ def download_video(video_url: str, output_dir: str = "./temp_videos") -> str:
                 return file_path
 
         # 如果没找到，查找最新文件
-        files = list(Path(output_dir).glob('*.mp4')) + list(Path(output_dir).glob('*.m4a')) + list(Path(output_dir).glob('*.mp3')) + list(Path(output_dir).glob('*.webm'))
+        files = (
+            list(Path(output_dir).glob('*.mp4')) +
+            list(Path(output_dir).glob('*.m4a')) +
+            list(Path(output_dir).glob('*.mp3')) +
+            list(Path(output_dir).glob('*.webm'))
+        )
         if files:
             latest = max(files, key=lambda f: f.stat().st_mtime)
             print(f"✅ 下载完成: {latest}")

@@ -1,36 +1,7 @@
 {
-  "gemini": {
-    "api_key": "你的 Gemini API Key",
-    "model": "gemini-2.5-flash",
-    "analysis": {
-      "detail_level": "standard"
-    }
-  },
-  "笔记格式": {
-    "格式选项": {
-      "使用Mermaid脑图": true,
-      "使用表格": true,
-      "使用代码高亮": true,
-      "使用数学公式": true,
-      "使用emoji标注": true,
-      "生成目录": true
-    },
-    "标注风格": {
-      "重点": "⭐",
-      "警告": "⚠️",
-      "提示": "💡",
-      "示例": "📝",
-      "练习": "✏️",
-      "难点": "🔥",
-      "易错": "❌"
-    }
-  },
-  "输出配置": {
-    "输出目录": "./tutorial_notes",
-    "额外文件": {
-      "生成词汇表": true,
-      "生成公式手册": true,
-      "生成代码仓库": true
-    }
+  "transcription": {
+    "model_size": "base",
+    "device": "cpu",
+    "language": "auto"
   }
 }

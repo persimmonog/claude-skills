@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets (YouTube cookies contain login credentials)
+cookies.txt
+
+# Temporary files
+temp_videos/
+
+# Generated output (transcripts, notes, progress)
+tutorial_notes/
+
+# Playlist files (user-specific content)
+playlist_new.txt

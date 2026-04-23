@@ -8,7 +8,6 @@
 
 from faster_whisper import WhisperModel
 import pathlib
-import sys
 
 
 class FasterWhisperTranscriber:
@@ -26,11 +25,11 @@ class FasterWhisperTranscriber:
         self.model = WhisperModel(
             model_size,
             device=device,
-            compute_type="int8"  # 使用 int8 量化，更快且省内存
+            compute_type="int8"
         )
         print(f"✓ 模型加载完成")
 
-    def transcribe(self, audio_path: str, language: str = "zh") -> str:
+    def transcribe(self, audio_path: str, language: str = "auto") -> str:
         """
         转录音频文件
 
@@ -48,7 +47,7 @@ class FasterWhisperTranscriber:
                 audio_path,
                 language=language if language != "auto" else None,
                 beam_size=5,
-                vad_filter=True,  # 启用 VAD 过滤静音
+                vad_filter=True,
                 vad_parameters={
                     "min_silence_duration_ms": 500,
                     "speech_pad_ms": 300
@@ -63,11 +62,9 @@ class FasterWhisperTranscriber:
                 full_text.append(segment.text)
                 segment_count += 1
 
-                # 每10段打印一次进度
                 if segment_count % 10 == 0:
                     print(f"    已处理 {segment_count} 个片段...")
 
-            # 合并文本
             transcript = "".join(full_text)
 
             print(f"  ✓ 转录完成，共 {segment_count} 个片段")
@@ -78,50 +75,3 @@ class FasterWhisperTranscriber:
             import traceback
             traceback.print_exc()
             return None
-
-
-def test_transcription():
-    """测试转录功能"""
-
-    print("="*80)
-    print("测试 faster-whisper")
-    print("="*80)
-
-    # 创建转录器
-    transcriber = FasterWhisperTranscriber(model_size="base", device="cpu")
-
-    # 测试音频文件
-    test_audio = "/Users/luyonghui/.claude/skills/youtube-tutorial-notes/test_download/test_video.mp4"
-
-    if not pathlib.Path(test_audio).exists():
-        print(f"✗ 测试音频不存在: {test_audio}")
-        return
-
-    print(f"\n测试音频: {test_audio}")
-    file_size = pathlib.Path(test_audio).stat().st_size / 1024 / 1024
-    print(f"文件大小: {file_size:.2f} MB")
-
-    # 转录
-    print("\n开始转录...")
-    transcript = transcriber.transcribe(test_audio, language="zh")
-
-    if transcript:
-        print("\n" + "="*80)
-        print("转录成功！")
-        print("="*80)
-        print(f"\n转录文本（前500字符）:\n")
-        print(transcript[:500])
-        print(f"\n总字数: {len(transcript)}")
-
-        # 保存结果
-        output_file = '/Users/luyonghui/.claude/skills/youtube-tutorial-notes/test_transcript.txt'
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(transcript)
-
-        print(f"\n✓ 完整转录已保存到: {output_file}")
-    else:
-        print("\n✗ 转录失败")
-
-
-if __name__ == '__main__':
-    test_transcription()

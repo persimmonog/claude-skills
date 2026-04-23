@@ -1,6 +1,7 @@
 {
-  "gemini": {
-    "api_key": "YOUR_GEMINI_API_KEY_HERE",
-    "model": "gemini-2.5-flash"
+  "transcription": {
+    "model_size": "base",
+    "device": "cpu",
+    "language": "auto"
   }
 }
