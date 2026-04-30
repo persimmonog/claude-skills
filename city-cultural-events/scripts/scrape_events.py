@@ -323,11 +323,51 @@ async def scrape_huodongxing(city, event_type="全部", max_items=15):
     return results
 
 
+# 常用城市中文名到豆瓣同城 URL slug 的映射
+DOUBAN_CITY_MAP = {
+    "北京": "beijing",
+    "上海": "shanghai",
+    "广州": "guangzhou",
+    "深圳": "shenzhen",
+    "成都": "chengdu",
+    "杭州": "hangzhou",
+    "南京": "nanjing",
+    "重庆": "chongqing",
+    "武汉": "wuhan",
+    "西安": "xian",
+    "苏州": "suzhou",
+    "天津": "tianjin",
+    "长沙": "changsha",
+    "青岛": "qingdao",
+    "大连": "dalian",
+    "厦门": "xiamen",
+    "昆明": "kunming",
+    "郑州": "zhengzhou",
+    "济南": "jinan",
+    "合肥": "hefei",
+}
+
+
+def _get_douban_city_slug(city):
+    """获取豆瓣同城 URL 中使用的城市 slug（拼音）。"""
+    slug = DOUBAN_CITY_MAP.get(city)
+    if slug:
+        return slug
+    # 回退：尝试用 pypinyin 转换
+    try:
+        from pypinyin import pinyin, Style
+        parts = pinyin(city, style=Style.NORMAL)
+        return "".join(p[0] for p in parts)
+    except ImportError:
+        return city  # 无法转换则使用原名（可能 404）
+
+
 async def scrape_douban(city, event_type="全部", max_items=15):
     """
     通过 Playwright 抓取豆瓣同城活动数据。
     """
     results = []
+    city_slug = _get_douban_city_slug(city)
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -339,7 +379,7 @@ async def scrape_douban(city, event_type="全部", max_items=15):
 
         try:
             await page.goto(
-                f"https://www.douban.com/location/{city}/events/",
+                f"https://www.douban.com/location/{city_slug}/events/",
                 wait_until="domcontentloaded",
                 timeout=15000,
             )
@@ -418,21 +458,23 @@ def extract_item_id(url):
 
 
 def categorize_events(events):
-    """将活动按类型分类"""
+    """将活动按类型分类，演唱会/音乐节放最后（需提前购票）"""
     categories = {
-        "演唱会/音乐节": [],
-        "话剧/音乐剧": [],
         "展览": [],
+        "话剧/音乐剧": [],
         "脱口秀/喜剧": [],
+        "演唱会/音乐节": [],
         "其他": [],
     }
+
+    music_keywords = ["演唱会", "音乐节", "音乐会", "LIVE", "Livehouse", "live"]
 
     for event in events:
         guide = event.get("guide_category", "")
         category = event.get("category", "")
         title = event.get("title", "")
 
-        if guide == "音乐现场" or category in ["演唱会", "音乐节"] or any(kw in title for kw in ["演唱会", "音乐节"]):
+        if guide in ("音乐现场", "音乐会") or category in ("演唱会", "音乐节", "音乐会") or any(kw.lower() in title.lower() for kw in music_keywords):
             categories["演唱会/音乐节"].append(event)
         elif guide == "话剧音乐剧" or category in ["话剧歌剧"] or any(kw in title for kw in ["话剧", "音乐剧", "舞台剧"]):
             categories["话剧/音乐剧"].append(event)
