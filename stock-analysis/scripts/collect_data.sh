@@ -82,22 +82,24 @@ run "calc_index.txt"      "${DATA_DIR}/calc_index.txt"      longbridge calc-inde
 run "valuation.txt"       "${DATA_DIR}/valuation.txt"       longbridge valuation "$SYMBOL"
 run "consensus.txt"       "${DATA_DIR}/consensus.txt"       longbridge consensus "$SYMBOL"
 
-# ── 模块 D：公司信息与治理 ──
+# ── 模块 D：公司信息──
 run "company.txt"         "${DATA_DIR}/company.txt"         longbridge company "$SYMBOL"
 run "executive.txt"       "${DATA_DIR}/executive.txt"       longbridge executive "$SYMBOL"
-run "shareholder.txt"     "${DATA_DIR}/shareholder.txt"     longbridge shareholder "$SYMBOL"
 run "dividend.txt"        "${DATA_DIR}/dividend.txt"        longbridge dividend "$SYMBOL"
 
-# ── 模块 E：机构评级与行业估值 ──
-run "institution.txt"     "${DATA_DIR}/institution.txt"     longbridge institution-rating "$SYMBOL"
-run "industry_val.txt"    "${DATA_DIR}/industry_val.txt"    bash -c "longbridge industry-valuation '$SYMBOL' > '${DATA_DIR}/industry_val.txt' && longbridge industry-valuation dist '$SYMBOL' >> '${DATA_DIR}/industry_val.txt'"
+# ── 模块 F：股东结构（美股+港股）──
+run "shareholder.txt"     "${DATA_DIR}/shareholder.txt"     longbridge shareholder "$SYMBOL"
 
-# ── 模块 F：内部人交易（仅美股） ──
+# ── 模块 G：内部人交易（仅美股）──
 if [[ "$SYMBOL" == *.US ]]; then
     run "insider.txt" "${DATA_DIR}/insider.txt" longbridge insider-trades "$SYMBOL" --count 20
 fi
 
-# ── 模块 G：新闻与研究 ──
+# ── 模块 E：机构评级与行业估值──
+run "institution.txt"     "${DATA_DIR}/institution.txt"     longbridge institution-rating "$SYMBOL"
+run "industry_val.txt"    "${DATA_DIR}/industry_val.txt"    bash -c "longbridge industry-valuation '$SYMBOL' > '${DATA_DIR}/industry_val.txt' && longbridge industry-valuation dist '$SYMBOL' >> '${DATA_DIR}/industry_val.txt'"
+
+# ── 模块 H：新闻与研究──
 run "news.txt"            "${DATA_DIR}/news.txt"            longbridge news "$SYMBOL"
 run "topic.txt"           "${DATA_DIR}/topic.txt"           longbridge topic "$SYMBOL"
 

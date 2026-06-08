@@ -112,7 +112,8 @@ bash scripts/collect_data.sh <SYMBOL> "stock-analysis/<股票名称>/"
 | C 估值指标 | calc-index、valuation、consensus | Step 7 估值 |
 | D 公司治理 | company、executive、shareholder、dividend | Step 1 生意本质、Step 5 股东回报与治理 |
 | E 机构评级 | institution-rating、industry-valuation | Step 7 估值 |
-| F 内部人交易 | insider-trades（仅美股） | Step 5 治理 |
+| F 股东结构 | shareholder（美股+港股）、insider-trades（仅美股） | Step 5 治理 |
+| G 内部人交易 | insider-trades（仅美股） | Step 5 治理 |
 
 ### 第2层：申报文件原文（🟢 高可靠）
 
@@ -121,8 +122,8 @@ bash scripts/collect_data.sh <SYMBOL> "stock-analysis/<股票名称>/"
 **建追踪文件：**
 ```bash
 cat > "stock-analysis/<名称>/source_docs/.checklist" << 'EOF'
-□ 1.年报  □ 2.季报  □ 3.电话会  □ 4.招股书  □ 5.委托书
-□ 6.同行年报  □ 7.行业研报  □ 8.股东变动  □ 9.宏观政策
+□ 1.年报  □ 2.季报  □ 3.电话会  □ 4.招股书
+□ 5.同行年报  □ 6.行业研报  □ 7.宏观政策
 EOF
 ```
 

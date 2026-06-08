@@ -38,16 +38,14 @@ critical_data.md 是**原始信息摘录文件**，不是分析文件。它的�
 ### 节号对照
 
 | critical_data 节号 | 对应数据源 | 来源章节 |
-|---|---|---|
+|---|---|---|---|
 | 第一节 | 年度报告 | 一 |
 | 第二节 | 季报/中报 | 二 |
 | 第三节 | 财报电话会 Q&A | 三 |
 | 第四节 | 招股说明书 | 四 |
-| 第五节 | 委托书/代理权说明书 | 五 |
-| 第六节 | 同行公司对比 | 六 |
-| 第七节 | 行业研究报告 | 七 |
-| 第八节 | 股东权益变动 | 八 |
-| 第九节 | 宏观与政策 | 九 |
+| 第五节 | 同行公司对比 | 五 |
+| 第六节 | 行业研究报告 | 六 |
+| 第七节 | 宏观与政策 | 七 |
 
 ---
 
@@ -167,13 +165,19 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 
 ### 获取方式
 
-| 市场 | 途径 |
+| 市场 | 命令 |
 |------|------|
-| **美股** | Seeking Alpha 搜代码 → Earnings Transcripts；公司 IR 官网 |
-| **港股** | 雪球搜"公司名 业绩会"；富途牛牛；公司 IR 官网 |
-| **A股** | 东方财富/同花顺 → 业绩说明会；投资者互动平台（互动易/e互动） |
+| **美股** | WebSearch 搜索 `"<TICKER> <公司名> Q<季度> <财年> earnings call transcript seeking alpha"` → 提取 Seeking Alpha 文章 URL → WebFetch 获取全文 |
+| **美股·双重上市港股** | 纯港股不获取；双重上市公司（BABA/JD/BIDU等）按美股途径，使用 US 代码 |
+| **A股** | `python3 scripts/cninfo_download.py <STOCK_CODE> --type 电话会 --count 5 -o "stock-analysis/<名称>/source_docs/"` |
 
-> A股目前仍是"业绩说明会"形式，问答质量通常低于美股和港股，需用投资者互动平台提问和调研记录补充。
+> **美股 URL 模板（以 NVDA 为例）：** `https://seekingalpha.com/article/4907259-nvidia-corporation-nvda-q1-2027-earnings-call-transcript`
+> 模板：`https://seekingalpha.com/article/{ARTICLE_ID}-{公司名}-{TICKER}-q{季度}-{财年}-earnings-call-transcript`
+> 注意：`{ARTICLE_ID}` 为数字 ID，需通过 WebSearch 获取，无法直接拼出。
+>
+> **备用方案（Seeking Alpha 需 JS/登录时）：** WebSearch 搜索 `"<TICKER> Q<季度> <财年> earnings transcript fool.com"` → Motley Fool 版获取。
+>
+> **保存规范：** 获取全文后，保存至 `stock-analysis/<名称>/source_docs/电话会纪要_YYYYMMDD.md`，使用 Markdown 格式。文件名示例：`电话会纪要_20260520.md`。
 
 ### 提取指令
 
@@ -219,34 +223,7 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 
 ---
 
-## 五、委托书 / 代理权说明书 —— 管理层利益导向
-
-> 服务框架：Step 5（治理结构）
-
-股权激励行权条件直接告诉你管理层在追求什么。
-
-### 获取方式
-
-| 市场 | 命令 |
-|------|------|
-| **美股** | `python3 scripts/sec_filing.py <TICKER> DEF14A -o "stock-analysis/<名称>/source_docs/"` |
-| **港股** | `longbridge filing <CODE>` 搜"通函"；年报 → 薪酬委员会报告 |
-| **A股** | `longbridge filing <CODE>` 搜"股权激励"；年报 → 董事薪酬章节 |
-
-### 提取指令
-
-以下内容提取到 **critical_data.md 第五节**：
-
-| 提取项 | 提取说明 | 服务于 |
-|--------|---------|--------|
-| 股权激励行权条件 | 原文摘录行权条件：绝对股价门槛还是相对指数表现？是营收/利润/EPS 还是 ROE/ROIC？ | Step 5：管理层的真正 KPI——行权条件比年报里的战略宣言更诚实 |
-| 董事薪酬结构 | 现金 vs 股权比例、短期奖金 vs 长期激励占比 | Step 5：管理层利益与股东的绑定程度 |
-| 关联交易审批程序 | 独立董事在关联交易审批中的实际作用、是否有独立财务顾问意见 | Step 5：小股东保护机制 |
-| 董事会结构 | 独立董事比例、董事任期、是否设有独立首席董事 | Step 5：治理制衡 |
-
----
-
-## 六、同行公司年报 —— 没有对比就没有结论
+## 五、同行公司年报 —— 没有对比就没有结论
 
 > 服务框架：Step 0（行业KPI）/ Step 2（竞争格局）/ Step 3（竞争优势验证）
 
@@ -270,16 +247,17 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 
 ---
 
-## 七、行业研究报告
+## 六、行业研究报告
 
 > 服务框架：Step 0（行业KPI锁定）/ Step 2（行业理解）
 
 ### 获取途径
 
-1. **WebSearch：** `"<行业名称> 行业研究报告 site:eastmoney.com"` 或 `"<行业> 研报 2025"`
-2. **券商公众号：** 搜"中信证券研究"/"华泰证券研究所" + 行业名
-3. **行业协会：** 乘联会（汽车）、中汽协、IDC（科技）等
-4. **data.eastmoney.com/report** → 选"行业研报"而非"个股研报"
+1. **东方财富研报中心（行业研报）** → `data.eastmoney.com/report/industry.jshtml`
+   - 搜索目标行业（如"整车"、"电池"、"消费电子"）
+   - 点开报告正文页，页面 JS 变量 `zwinfo.attach_url` 即为 PDF 地址
+   - 下载格式：`https://pdf.dfcfw.com/pdf/H3_{infocode}_1.pdf?{timestamp}.pdf`
+2. **WebSearch 辅助发现：** `"<行业> 研报 site:data.eastmoney.com/report 2026"` — 仅用于找报告链接，内容走 PDF
 
 ### 提取指令
 
@@ -295,42 +273,7 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 
 ---
 
-## 八、主要股东持股与变动
-
-> 服务框架：Step 5（治理）
-
-这是最早发现内部人减持信号的来源，早于季报披露。
-
-### 获取方式
-
-| 市场 | 命令 |
-|------|------|
-| **美股** | `longbridge insider-trades <CODE> --count 20 > "stock-analysis/<名称>/source_docs/内部人交易.txt"`；大股东：`sec_filing.py <TICKER> 13D` / `13G` |
-| **港股** | `longbridge filing <CODE>` 搜"权益披露" |
-| **A股** | `longbridge filing <CODE>` 搜"权益变动" |
-
-### 提取指令
-
-以下内容提取到 **critical_data.md 第八节**：
-
-| 提取项 | 提取说明 | 服务于 |
-|--------|---------|--------|
-| 内部人交易记录 | 近 12 个月买卖方向、股数、金额、交易人身份（CEO/CFO/董事/大股东） | Step 5：内部人用脚投票——比任何声明都诚实 |
-| 大股东持仓变化 | 持股比例变化趋势、增减持原因（自身资金需求还是看空？） | Step 5：股东结构与利益取向 |
-| 多重内部人交易信号 | 同一时段是否有多名内部人同向操作 | Step 5：多人同时卖出需要高度警惕，不是巧合 |
-
-### 信号参考
-
-| 信号 | 含义 | 紧急程度 |
-|------|------|---------|
-| 控股股东持续减持 | 最有信息优势的人在卖 | 🔴 最紧急 |
-| 多名内部人同时卖出 | 需要高度警惕——不是巧合 | 🔴 紧急 |
-| 内部人自掏腰包买入 | 最强信心信号 | 🟢 正面 |
-| 计划内减持（如 Prosus 减持腾讯） | 自身资金需求，非看空 | 🟡 关注即可 |
-
----
-
-## 九、宏观与政策数据
+## 七、宏观与政策数据
 
 > 服务框架：Step 6（宏观与政策层）
 
