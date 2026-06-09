@@ -6,14 +6,14 @@ A股申报文件下载工具（巨潮资讯 API）
 以及投资者关系活动记录（替代电话会纪要），并用 pypdf 提取为纯文本。
 
 用法：
-  python3 cninfo_download.py <STOCK_CODE> [--type 年报|季报|半年度报告|电话会] [--count N] [--output DIR]
+  python3 cninfo_download.py <STOCK_CODE> --name <NAME> [--type 年报|季报|半年度报告|电话会] [--count N] [--output DIR]
 
 示例：
-  python3 cninfo_download.py 300308                         # 最新年报
-  python3 cninfo_download.py 600519 --type 季报              # 最新季报
-  python3 cninfo_download.py 000568 --type 半年度报告        # 最新中报
-  python3 cninfo_download.py 002594 --type 电话会 --count 3  # 最近3份投资者关系活动记录
-  python3 cninfo_download.py 300308 --type 年报 --output stock-analysis/博通/source_docs/
+  python3 cninfo_download.py 300308 --name 中际旭创                             # 最新年报
+  python3 cninfo_download.py 600519 --name 贵州茅台 --type 季报                   # 最新季报
+  python3 cninfo_download.py 000568 --name 泸州老窖 --type 半年度报告             # 最新中报
+  python3 cninfo_download.py 002594 --name 比亚迪 --type 电话会 --count 3         # 最近3份投资者关系活动记录
+  python3 cninfo_download.py 300308 --name 中际旭创 --type 年报 --output stock-analysis/中际旭创/source_docs/
 
 原理：
   1. szse_stock.json → orgId
@@ -33,6 +33,7 @@ import ssl
 import sys
 import urllib.parse
 import urllib.request
+from datetime import datetime
 from pypdf import PdfReader
 
 # 类型别名 → cninfo 标题关键字
@@ -66,12 +67,17 @@ def _req(url, data=None, timeout=20):
 
 
 def get_org_id(stock_code):
-    """从 szse_stock.json 获取 orgId"""
-    resp = _req("http://www.cninfo.com.cn/new/data/szse_stock.json")
-    for item in json.loads(resp.read())["stockList"]:
-        if item["code"] == stock_code:
+    """从 cninfo topSearch/query 获取真实 orgId（支持沪深全部 A 股）"""
+    code6 = stock_code.replace(".SH", "").replace(".SZ", "").strip()
+    url = f"http://www.cninfo.com.cn/new/information/topSearch/query?keyWord={code6}&maxNum=10"
+    resp = _req(url, data=urllib.parse.urlencode({}).encode(), timeout=15)
+    data = json.loads(resp.read())
+    if not data:
+        raise ValueError(f"未找到股票代码 {stock_code} 的 orgId（topSearch 返回空）")
+    for item in data:
+        if item.get("code") == code6 and item.get("orgId"):
             return item["orgId"]
-    raise ValueError(f"未找到股票代码 {stock_code} 的 orgId")
+    raise ValueError(f"未找到股票代码 {stock_code} 的 orgId（返回: {data[:2]}）")
 
 
 def search_announcements(org_id, stock_code, keyword, page_size=30):
@@ -83,14 +89,14 @@ def search_announcements(org_id, stock_code, keyword, page_size=30):
     url = "http://www.cninfo.com.cn/new/hisAnnouncement/query"
     today = __import__("datetime").date.today()
     date_range = f"{today.year - 6}-01-01~{today.year + 1}-12-31"
+    code6 = stock_code.replace(".SH", "").replace(".SZ", "").strip()
     params = {
         "pageNum": 1, "pageSize": page_size,
-        "stock": f"{stock_code},{org_id}",
+        "stock": f"{code6},{org_id}",
         "seDate": date_range,
     }
-    # 投资者关系活动记录使用 searchkey 精确搜索
-    if keyword == "投资者关系活动记录":
-        params["searchkey"] = keyword
+    # 使用 searchkey 精确搜索（不传 searchkey 时，巨潮按 column 混排，年报可能排到几百条之后）
+    params["searchkey"] = keyword
     data = urllib.parse.urlencode(params).encode()
     result = json.loads(_req(url, data=data).read())
     return result.get("announcements", [])
@@ -122,9 +128,11 @@ def find_pdfs(announcements, keyword):
         else:
             ts = item.get("announcementTime")
             if ts:
-                ts_match = re.search(r"(\d{4})-(\d{2})-(\d{2})", str(ts))
-                if ts_match:
-                    date_str = "".join(ts_match.groups())
+                # announcementTime 是 Unix 毫秒时间戳
+                ts_sec = int(ts) / 1000
+                from datetime import datetime
+                dt = datetime.fromtimestamp(ts_sec)
+                date_str = dt.strftime("%Y%m%d")
         results.append((pdf_url, date_str, title))
     results.sort(key=lambda x: x[1], reverse=True)
     return results
@@ -149,6 +157,8 @@ def main():
                         help="文件类型：年报 / 季报 / 半年度报告 / 电话会（默认年报）")
     parser.add_argument("--count", "-n", type=int, default=1,
                         help="下载份数（默认 1，仅电话会有效，其他类型始终只取最新 1 份）")
+    parser.add_argument("--name", default=None,
+                        help="公司名称，用于文件名（默认用股票代码）")
     parser.add_argument("--output", "-o", default=".",
                         help="输出目录（默认当前目录）")
     args = parser.parse_args()
@@ -196,7 +206,8 @@ def main():
             print(f"   ❌ 下载/提取失败: {e}")
             continue
 
-        filename = f"{prefix}_{date_str}.txt"
+        name_part = args.name if args.name else args.stock_code.replace(".SH", "").replace(".SZ", "").strip()
+        filename = f"{prefix}_{name_part}_{date_str}.txt"
         output = os.path.join(args.output, filename)
         with open(output, "w", encoding="utf-8") as f:
             f.write(text)
