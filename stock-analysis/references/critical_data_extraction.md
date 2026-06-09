@@ -1,16 +1,7 @@
-# 各市场原始文件获取指南
+# critical_data.md 信息提取指南
 
-> 参考文档 —— 每个任务的**获取命令、提取指令、关联框架问题**都在这里。
-> 执行流程由 SKILL.md Phase 2 第 2 层的任务表驱动，本文件按需查阅对应章节。
-
----
-
-## 通用保存规范
-
-- **保存位置：** `source_docs/`，文件名格式 `类型_YYYYMMDD.txt`（如 `年报_20260409.txt`）
-- **保存内容：** 一手原始文档全文，不拆分章节
-- **日期来源：** 美股从 SEC 头部 `CONFORMED PERIOD OF REPORT` 提取；港股从 `longbridge filing` 的 `publish_at` 列提取；A股从巨潮 API 返回的 `announcementDate` 字段提取（cninfo_download.py 自动处理）
-- **文本提取：** PDF 统一用 `pypdf`；美股 SEC 文件为纯文本无需提取
+> 本文档定义从各原始文件中**提取什么信息**到 `critical_data.md`，以及如何组织这些信息。
+> 文件下载命令见 `references/filing_download_guide.md`。
 
 ---
 
@@ -49,37 +40,30 @@ critical_data.md 是**原始信息摘录文件**，不是分析文件。它的�
 
 ---
 
+## 通用预处理：PDF 文本提取
+
+- 美股 SEC 文件下载后已是纯文本格式，可直接读取
+- 港股/A股 PDF 文件需先用 `pypdf` 提取文本，再读取摘录信息
+
+```bash
+python3 -c "
+from pypdf import PdfReader
+for page in PdfReader('stock-analysis/<名称>/source_docs/<文件名>.pdf').pages:
+    print(page.extract_text())
+" > "stock-analysis/<名称>/source_docs/<文件名>.txt"
+```
+
+PDF 文件已由下载阶段保存至 `source_docs/`，此处直接读取本地文件提取文本。
+
+---
+
 ## 一、年度报告 —— 最重要的单一文件
 
 > 服务框架：Step 1（生意本质）/ Step 3（竞争优势验证）/ Step 4（财务质量）/ Step 5（治理）
 
-### 获取方式
-
-| 市场 | 命令 |
-|------|------|
-| **美股** | `python3 scripts/sec_filing.py <TICKER> 10-K -o "stock-analysis/<名称>/source_docs/"` |
-| **美股·中概股** | `python3 scripts/sec_filing.py <TICKER> 20-F -o "stock-analysis/<名称>/source_docs/"` |
-| **港股** | `longbridge filing <CODE>` 搜"年报" → `filing detail <ID> --list-files` 获PDF直链 → pypdf提取 |
-| **A股** | `python3 scripts/cninfo_download.py <CODE> -o "stock-analysis/<名称>/source_docs/"`（首选）；备用：`longbridge filing` 深交所直链 |
-
-**港股 pypdf 提取命令：**
-```bash
-longbridge filing <CODE> --count 50
-longbridge filing detail <CODE> <ID> --list-files
-python3 -c "
-import ssl, urllib.request, io
-from pypdf import PdfReader
-ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
-data = urllib.request.urlopen(urllib.request.Request('https://pub.lbkrs.com/...', headers={'User-Agent': 'Mozilla/5.0'}), timeout=30, context=ctx).read()
-for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
-" > "stock-analysis/<名称>/source_docs/年报_<YYYYMMDD>.txt"
-```
-
-### 提取指令
-
 以下内容提取到 **critical_data.md 第一节**，每条按格式规范记录"来源"和"服务于"。
 
-#### 1. 收入构成与分部数据
+### 1. 收入构成与分部数据
 
 | 提取项 | 提取说明 | 服务于 |
 |--------|---------|--------|
@@ -87,7 +71,7 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 | 分部毛利率 | 各业务线的毛利率水平及同比变化 | Step 3：定价权验证（毛利率是定价权的财务表达） |
 | 地区/渠道拆分 | 境内 vs 境外、线上 vs 线下的收入和增速差异 | Step 1：收入结构；Step 6：地缘/汇率敞口 |
 
-#### 2. MD&A（管理层讨论与分析）
+### 2. MD&A（管理层讨论与分析）
 
 | 提取项 | 提取说明 | 服务于 |
 |--------|---------|--------|
@@ -96,21 +80,21 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 | 未来展望与战略方向 | 管理层宣布的计划、目标、资本开支意向 | Step 5：管理层兑现率（未来可对照验证） |
 | 关键业务指标 | 管理层主动披露的运营数据（GMV、用户数、订单量等，非财务报告强制披露项） | Step 0：锁定行业核心 KPI |
 
-#### 3. 风险因素（Risk Factors）
+### 3. 风险因素（Risk Factors）
 
 | 提取项 | 提取说明 | 服务于 |
 |--------|---------|--------|
 | 前 5-10 大风险 | 原文摘录风险描述（排越前越重要），注意与同行年报风险章节对比——公司回避了什么？ | Step 6：宏观/政策风险；Step 8：致命假设 |
 | 本次新增或删除的风险 | 与上年年报对比，新增了什么风险？删掉了什么？ | Step 5：管理层坦诚度（删除风险可能是掩盖） |
 
-#### 4. 关联交易披露
+### 4. 关联交易披露
 
 | 提取项 | 提取说明 | 服务于 |
 |--------|---------|--------|
 | 重大关联交易 | 交易对手、金额、定价依据、审批程序 | Step 5：利益输送风险 |
 | 关联方应收/应付余额 | 金额及变化趋势 | Step 5：资金占用风险 |
 
-#### 5. 财务报告附注
+### 5. 财务报告附注
 
 | 提取项 | 提取说明 | 服务于 |
 |--------|---------|--------|
@@ -119,7 +103,7 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 | 或有负债/诉讼拨备 | 重大未决诉讼、担保、承诺事项 | Step 4：隐性负债；Step 8：下行情景缓冲 |
 | 债务到期结构 | 短期 vs 长期债务、利率类型（固定/浮动）、货币构成 | Step 4：债务风险；Step 6：利率敏感性 |
 
-#### 6. 主要股东与薪酬
+### 6. 主要股东与薪酬
 
 | 提取项 | 提取说明 | 服务于 |
 |--------|---------|--------|
@@ -132,19 +116,6 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 ## 二、季报 / 中报 —— 追踪最新 KPI 趋势
 
 > 服务框架：Step 4（最新KPI趋势）/ Step 7（更新估值）
-
-> 季度财务数字已通过 `longbridge financial-report --kind IS --report qf` 覆盖（collect_data.sh 已采集）。此处获取的是**季报原文的 MD&A 定性描述和分部业务变化**。
-
-### 获取方式
-
-| 市场 | 命令 |
-|------|------|
-| **美股** | `python3 scripts/sec_filing.py <TICKER> 10-Q --count 4 -o "stock-analysis/<名称>/source_docs/"` |
-| **美股·中概股** | `python3 scripts/sec_filing.py <TICKER> 6-K --count 4 -o "stock-analysis/<名称>/source_docs/"`（6-K 是外国私人发行人的定期披露表格；中概股无季报要求，此处获取的通常是半年报和业绩公告，注意按文件内容区分） |
-| **港股** | `longbridge filing <CODE>` 搜"中期报告" → pypdf 提取（命令参考年报节） |
-| **A股** | `python3 scripts/cninfo_download.py <CODE> --type 季报 -o "stock-analysis/<名称>/source_docs/"`（中报用 `--type 半年度报告`） |
-
-### 提取指令
 
 以下内容提取到 **critical_data.md 第二节**：
 
@@ -163,24 +134,6 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 
 **核心价值不在管理层陈述（年报已写），而在 Q&A 环节**——分析师追问揭示行业真正胜负手，管理层含糊其辞的地方揭示真正风险。
 
-### 获取方式
-
-| 市场 | 命令 |
-|------|------|
-| **美股** | WebSearch 搜索 `"<TICKER> <公司名> Q<季度> <财年> earnings call transcript seeking alpha"` → 提取 Seeking Alpha 文章 URL → WebFetch 获取全文 |
-| **美股·双重上市港股** | 纯港股不获取；双重上市公司（BABA/JD/BIDU等）按美股途径，使用 US 代码 |
-| **A股** | `python3 scripts/cninfo_download.py <STOCK_CODE> --type 电话会 --count 5 -o "stock-analysis/<名称>/source_docs/"` |
-
-> **美股 URL 模板（以 NVDA 为例）：** `https://seekingalpha.com/article/4907259-nvidia-corporation-nvda-q1-2027-earnings-call-transcript`
-> 模板：`https://seekingalpha.com/article/{ARTICLE_ID}-{公司名}-{TICKER}-q{季度}-{财年}-earnings-call-transcript`
-> 注意：`{ARTICLE_ID}` 为数字 ID，需通过 WebSearch 获取，无法直接拼出。
->
-> **备用方案（Seeking Alpha 需 JS/登录时）：** WebSearch 搜索 `"<TICKER> Q<季度> <财年> earnings transcript fool.com"` → Motley Fool 版获取。
->
-> **保存规范：** 获取全文后，保存至 `stock-analysis/<名称>/source_docs/电话会纪要_YYYYMMDD.md`，使用 Markdown 格式。文件名示例：`电话会纪要_20260520.md`。
-
-### 提取指令
-
 以下内容提取到 **critical_data.md 第三节**：
 
 | 提取项 | 提取说明 | 服务于 |
@@ -198,16 +151,6 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 > 服务框架：Step 0（行业KPI锁定）/ Step 2（行业理解）
 
 招股书的"行业概述"章节由投行撰写，是**免费的行业研究报告**——系统梳理行业规模、竞争格局、核心指标。
-
-### 获取方式
-
-| 市场 | 命令 |
-|------|------|
-| **美股** | `python3 scripts/sec_filing.py <TICKER> S-1 -o "stock-analysis/<名称>/source_docs/"`（中概用 F-1） |
-| **港股** | `longbridge filing <CODE>` 搜"上市文件" → pypdf 提取 |
-| **A股** | `longbridge filing <CODE>` 搜"招股说明书" → pypdf 提取（巨潮 API 暂不支持招股书搜索） |
-
-### 提取指令
 
 以下内容提取到 **critical_data.md 第四节**：
 
@@ -229,13 +172,7 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 
 毛利高不高要看同行多少，ROE 好不好要看行业平均。选取 2-3 家最直接的竞争对手，对其年报重复第一章的提取流程。
 
-### 获取方式
-
-对 2-3 家同行公司，按第一章的获取命令执行，保存到同一 `source_docs/` 目录下（文件名加同行代码前缀区分）。
-
-### 提取指令
-
-以下内容提取到 **critical_data.md 第六节**：
+以下内容提取到 **critical_data.md 第五节**：
 
 | 提取项 | 提取说明 | 服务于 |
 |--------|---------|--------|
@@ -251,17 +188,7 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 
 > 服务框架：Step 0（行业KPI锁定）/ Step 2（行业理解）
 
-### 获取途径
-
-1. **东方财富研报中心（行业研报）** → `data.eastmoney.com/report/industry.jshtml`
-   - 搜索目标行业（如"整车"、"电池"、"消费电子"）
-   - 点开报告正文页，页面 JS 变量 `zwinfo.attach_url` 即为 PDF 地址
-   - 下载格式：`https://pdf.dfcfw.com/pdf/H3_{infocode}_1.pdf?{timestamp}.pdf`
-2. **WebSearch 辅助发现：** `"<行业> 研报 site:data.eastmoney.com/report 2026"` — 仅用于找报告链接，内容走 PDF
-
-### 提取指令
-
-以下内容提取到 **critical_data.md 第七节**：
+以下内容提取到 **critical_data.md 第六节**：
 
 | 提取项 | 提取说明 | 服务于 |
 |--------|---------|--------|
@@ -277,20 +204,7 @@ for page in PdfReader(io.BytesIO(data)).pages: print(page.extract_text())
 
 > 服务框架：Step 6（宏观与政策层）
 
-### 获取途径
-
-**行业政策：**
-1. **WebSearch：** `"<行业名> 政策 国务院 site:gov.cn"` 或 `"<行业> 监管 发改委"`
-2. 北大法宝 (lawinfochina.com) 搜索行业关键词
-
-**宏观经济：**
-1. 国家统计局 (stats.gov.cn) —— 中国宏观数据
-2. FRED (fred.stlouisfed.org) —— 美国及全球数据
-3. 中国人民银行 (pbc.gov.cn) —— 货币政策、利率
-
-### 提取指令
-
-以下内容提取到 **critical_data.md 第九节**：
+以下内容提取到 **critical_data.md 第七节**：
 
 | 提取项 | 提取说明 | 服务于 |
 |--------|---------|--------|
