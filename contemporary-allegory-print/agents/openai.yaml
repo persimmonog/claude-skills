@@ -1,0 +1,4 @@
+interface:
+  display_name: "当代寓言版画"
+  short_description: "把一句话、意象或照片稳定转译为高传播性的两色寓言版画"
+  default_prompt: "使用 $contemporary-allegory-print，把我提供的内容转译为一张当代寓言版画。"
